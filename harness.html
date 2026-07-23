@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>GreetBot harness — manual protocol test</title>
+<style>
+  :root { color-scheme: light dark; }
+  body {
+    font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    max-width: 48rem;
+    margin: 2rem auto;
+    padding: 0 1rem;
+  }
+  h1 { font-size: 1.2rem; }
+  h2 { font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.04em; color: #888; margin-top: 2rem; }
+  .note {
+    background: #fff8e1;
+    border: 1px solid #f0d97a;
+    border-radius: 6px;
+    padding: 0.75rem 1rem;
+    font-size: 0.9rem;
+  }
+  @media (prefers-color-scheme: dark) {
+    .note { background: #332b0f; border-color: #5a4a1a; }
+  }
+  .controls { display: flex; align-items: center; gap: 0.75rem; margin: 1rem 0; }
+  button {
+    font: inherit;
+    padding: 0.5rem 0.9rem;
+    border-radius: 6px;
+    border: 1px solid #999;
+    background: #fff;
+    cursor: pointer;
+  }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  @media (prefers-color-scheme: dark) { button { background: #222; color: #eee; border-color: #666; } }
+  #status { font-size: 0.85rem; color: #888; }
+  #hostLog {
+    list-style: none;
+    margin: 0;
+    padding: 0.5rem;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    height: 16rem;
+    overflow-y: auto;
+    font: 12px/1.5 ui-monospace, "SF Mono", Menlo, monospace;
+    background: #fafafa;
+  }
+  @media (prefers-color-scheme: dark) { #hostLog { border-color: #333; background: #111; } }
+  #hostLog li { padding: 0.15rem 0; word-break: break-all; border-bottom: 1px dotted #eee; }
+  @media (prefers-color-scheme: dark) { #hostLog li { border-bottom-color: #222; } }
+  #hostLog time { color: #999; margin-right: 0.5rem; }
+  iframe { width: 100%; height: 22rem; border: 1px solid #ddd; border-radius: 6px; margin-top: 0.5rem; }
+  @media (prefers-color-scheme: dark) { iframe { border-color: #333; } }
+</style>
+</head>
+<body>
+<h1>GreetBot manual test harness</h1>
+<p class="note">
+  This page plays the <strong>host</strong> side of the Chatwright iframe
+  bot protocol handshake, by hand, so <code>telegram/</code> can be
+  exercised without the real Chatwright runtime. It is a local dev tool
+  only: a real host validates the bot's <code>event.origin</code> against
+  the origin its <code>CHATWRIGHT.md</code> declares before handing over
+  the <code>MessagePort</code> — this harness accepts <em>any</em> origin
+  and simply echoes back whatever <code>protocolVersion</code>/
+  <code>platform</code> the bot announced. Never do that in a real host.
+</p>
+
+<h2>Controls</h2>
+<div class="controls">
+  <button id="send-start" disabled>send /start</button>
+  <button id="click-first" disabled>click first button</button>
+  <span id="status">waiting for handshake…</span>
+</div>
+
+<h2>Envelope exchange (host's view)</h2>
+<ol id="hostLog"></ol>
+
+<h2>Bot iframe (telegram/)</h2>
+<iframe id="bot-frame" src="telegram/" sandbox="allow-scripts allow-same-origin" title="GreetBot — Telegram adapter"></iframe>
+
+<script>
+(function () {
+  'use strict';
+
+  var PROTOCOL_VERSION = '1';
+
+  var iframe = document.getElementById('bot-frame');
+  var sendStartBtn = document.getElementById('send-start');
+  var clickFirstBtn = document.getElementById('click-first');
+  var statusEl = document.getElementById('status');
+  var hostLog = document.getElementById('hostLog');
+
+  var hostPort = null; // MessagePort held after handshake
+  var nextUpdateId = 1;
+  var nextMessageId = 1;
+  var menuMessageId = null; // message_id of the last language-choice message sent, so
+                             // "click first button" knows which message the click refers to.
+
+  var CHAT_ID = 1001;
+  var USER = { id: 42, is_bot: false, first_name: 'Tester' };
+
+  function logLine(text) {
+    var entry = document.createElement('li');
+    var time = document.createElement('time');
+    time.textContent = new Date().toISOString().slice(11, 19);
+    entry.appendChild(time);
+    entry.appendChild(document.createTextNode(' ' + text));
+    hostLog.appendChild(entry);
+    hostLog.scrollTop = hostLog.scrollHeight;
+  }
+
+  function logEnvelope(direction, envelope) {
+    console.log('[harness] ' + direction, envelope);
+    logLine(direction + ': ' + JSON.stringify(envelope));
+  }
+
+  // ---------------------------------------------------------------------
+  // Handshake — the host's half. The bot speaks first with `hello` at the
+  // window level; we reply with `hello-ack` carrying a transferred
+  // MessagePort, then move all traffic onto that port.
+  // ---------------------------------------------------------------------
+
+  window.addEventListener('message', function (event) {
+    // A real host checks event.origin here. This harness deliberately
+    // doesn't — see the note at the top of this page.
+    var data = event.data;
+    if (!data || data.chatwright !== 'hello') return;
+
+    logEnvelope('bot -> host (window)', data);
+
+    var channel = new MessageChannel();
+    hostPort = channel.port1;
+    hostPort.onmessage = onBotMessage;
+
+    var ack = {
+      chatwright: 'hello-ack',
+      protocolVersion: data.protocolVersion,
+      platform: data.platform,
+    };
+    event.source.postMessage(ack, '*', [channel.port2]);
+    logEnvelope('host -> bot (window)', ack);
+
+    statusEl.textContent = 'handshake complete';
+    sendStartBtn.disabled = false;
+  });
+
+  // ---------------------------------------------------------------------
+  // Port traffic from the bot: only "call" envelopes are expected (a bot
+  // never sends "update" or "result"). Every call gets a synthesized
+  // Telegram-shaped "result" envelope with the same id.
+  // ---------------------------------------------------------------------
+
+  function onBotMessage(event) {
+    var envelope = event.data;
+    logEnvelope('bot -> host', envelope);
+
+    if (!envelope || envelope.kind !== 'call') {
+      console.warn('[harness] unexpected envelope kind from bot:', envelope && envelope.kind);
+      return;
+    }
+
+    var result = emulateTelegramCall(envelope.payload.method, envelope.payload.params);
+    var resultEnvelope = { id: envelope.id, kind: 'result', platform: 'telegram', payload: result };
+    hostPort.postMessage(resultEnvelope);
+    logEnvelope('host -> bot', resultEnvelope);
+  }
+
+  // A deliberately minimal Telegram Bot API emulation — just enough shape
+  // for this bot's two methods. Real fidelity lives in the Chatwright
+  // runtime; this harness only needs to unblock manual testing.
+  function emulateTelegramCall(method, params) {
+    var now = Math.floor(Date.now() / 1000);
+
+    if (method === 'sendMessage') {
+      var messageId = nextMessageId++;
+      if (params.reply_markup) menuMessageId = messageId;
+      return {
+        ok: true,
+        result: {
+          message_id: messageId,
+          date: now,
+          chat: { id: params.chat_id, type: 'private' },
+          text: params.text,
+          reply_markup: params.reply_markup,
+        },
+      };
+    }
+
+    if (method === 'editMessageText') {
+      return {
+        ok: true,
+        result: {
+          message_id: params.message_id,
+          date: now,
+          chat: { id: params.chat_id, type: 'private' },
+          text: params.text,
+        },
+      };
+    }
+
+    return { ok: false, error_code: 501, description: 'harness: method "' + method + '" not emulated' };
+  }
+
+  // ---------------------------------------------------------------------
+  // Buttons — synthesize real Telegram Update JSON, exactly what a webhook
+  // would deliver, and send it as an "update" envelope.
+  // ---------------------------------------------------------------------
+
+  function sendUpdate(update) {
+    var envelope = { id: 'u-' + nextUpdateId, kind: 'update', platform: 'telegram', payload: update };
+    hostPort.postMessage(envelope);
+    logEnvelope('host -> bot', envelope);
+  }
+
+  sendStartBtn.addEventListener('click', function () {
+    var update = {
+      update_id: nextUpdateId++,
+      message: {
+        message_id: nextMessageId++,
+        date: Math.floor(Date.now() / 1000),
+        from: USER,
+        chat: { id: CHAT_ID, type: 'private' },
+        text: '/start',
+      },
+    };
+    sendUpdate(update);
+    clickFirstBtn.disabled = false;
+  });
+
+  clickFirstBtn.addEventListener('click', function () {
+    if (menuMessageId == null) {
+      statusEl.textContent = 'send /start first — no menu message to click yet';
+      return;
+    }
+    var update = {
+      update_id: nextUpdateId++,
+      callback_query: {
+        id: 'cbq-' + nextUpdateId,
+        from: USER,
+        message: {
+          message_id: menuMessageId,
+          date: Math.floor(Date.now() / 1000),
+          chat: { id: CHAT_ID, type: 'private' },
+        },
+        // First button in the language keyboard is English — see
+        // shared/greet.js LANGUAGES order.
+        data: 'lang:en',
+      },
+    };
+    sendUpdate(update);
+  });
+})();
+</script>
+</body>
+</html>
