@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>GreetBot (WhatsApp) — Chatwright demo bot</title>
+<style>
+  :root { color-scheme: light dark; }
+  body {
+    font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    max-width: 40rem;
+    margin: 2rem auto;
+    padding: 0 1rem;
+  }
+  h1 { font-size: 1.1rem; margin-bottom: 0.25rem; }
+  header p { color: #666; }
+  @media (prefers-color-scheme: dark) { header p { color: #999; } }
+  h2 { font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.04em; color: #888; margin-top: 2rem; }
+  #log {
+    list-style: none;
+    margin: 0;
+    padding: 0.5rem;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    height: 20rem;
+    overflow-y: auto;
+    font: 12px/1.5 ui-monospace, "SF Mono", Menlo, monospace;
+    background: #fafafa;
+  }
+  @media (prefers-color-scheme: dark) {
+    #log { border-color: #333; background: #111; }
+  }
+  #log li { padding: 0.15rem 0; word-break: break-all; border-bottom: 1px dotted #eee; }
+  @media (prefers-color-scheme: dark) { #log li { border-bottom-color: #222; } }
+  #log time { color: #999; margin-right: 0.5rem; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Chatwright greetbot — WhatsApp adapter</h1>
+  <p>
+    I live in an iframe; the runtime talks to me via <code>postMessage</code>.
+    I have no UI of my own beyond the log below — WhatsApp (real or
+    emulated) is my actual interface. The WhatsApp Cloud API has no inline
+    buttons and no message-edit endpoint, so my language choice is a
+    numbered-reply menu, and the greeting always arrives as a new message.
+    Conversation logic is shared with other platform adapters from
+    <code>../shared/greet.js</code>, unchanged.
+  </p>
+</header>
+<main>
+  <h2>Envelope log</h2>
+  <ol id="log"></ol>
+</main>
+<script src="../shared/greet.js"></script>
+<script src="bot.js"></script>
+</body>
+</html>

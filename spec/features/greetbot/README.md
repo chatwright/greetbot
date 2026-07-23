@@ -16,6 +16,12 @@ protocol end to end: platform-neutral conversation logic in
 `shared/greet.js`, one adapter directory per platform, a `CHATWRIGHT.md`
 manifest, and a manual harness proving the protocol without the runtime.
 
+## Contents
+
+| Child | Description |
+|---|---|
+| [whatsapp-language-onboarding](whatsapp-language-onboarding/README.md) | The WhatsApp adapter's numbered-reply degradation of language onboarding: no buttons, no edits, still the same shared conversation logic. |
+
 ## Problem
 
 The bot protocol and federation model need a living, readable proof — see

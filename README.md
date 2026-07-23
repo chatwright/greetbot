@@ -16,10 +16,13 @@ this repository.
 
 ## What it does
 
-`/start` offers a language choice as an inline keyboard. Picking a language
-edits that same message in place — translating it to the chosen language —
-and is remembered for the rest of the chat. Any other message is greeted in
-the chat's current language.
+Every adapter offers the same language choice and greeting, degraded to
+whatever affordances its platform actually has. Telegram's `/start` offers
+an inline keyboard whose pick edits the greeting in place. WhatsApp has no
+buttons and no message-edit endpoint, so its adapter sends a numbered-reply
+menu on a chat's first message and the greeting always arrives as a new
+message. Any other message is greeted in the chat's current language, on
+either platform.
 
 ## Structure
 
@@ -32,23 +35,29 @@ shared/greet.js    — platform-neutral conversation logic (pure functions,
 telegram/           — the Telegram adapter: iframe bot-protocol handshake,
   bot.js              Telegram Update <-> shared/greet.js translation,
   index.html          Bot API calls (sendMessage / editMessageText)
+whatsapp/           — the WhatsApp adapter: same handshake, WhatsApp Cloud
+  bot.js              API webhook <-> shared/greet.js translation, a single
+  index.html          sendMessage-shaped call (text only, no buttons/edits)
 harness.html        — a local manual test host (see CHATWRIGHT.md)
 index.html           — landing page listing platform adapters
 ```
 
-A future `whatsapp/`, `viber/`, or `slack/` adapter would follow the same
-shape: translate its platform's native updates into calls into
-`shared/greet.js`, and its returned intents back into that platform's own
-API. See [CHATWRIGHT.md](CHATWRIGHT.md) for the full rationale and the
-platform status table.
+A future `viber/` or `slack/` adapter would follow the same shape: translate
+its platform's native updates into calls into `shared/greet.js`, and its
+returned intents back into that platform's own API. `whatsapp/` proved the
+split survives a second platform without any change to `shared/greet.js`.
+See [CHATWRIGHT.md](CHATWRIGHT.md) for the full rationale and the platform
+status table.
 
 ## Protocol
 
-This bot implements the bot side of the
+Both bots implement the bot side of the
 [Chatwright iframe bot protocol v1](https://github.com/chatwright/chatwright/blob/main/formats/bot-protocol/v1/README.md):
-handshake with `window.parent`, then Telegram Update/call/result envelopes
-exclusively over the `MessagePort` it receives. `telegram/bot.js` is
-commented as a step-by-step reference implementation of that document.
+handshake with `window.parent`, then that platform's own native
+Update/call/result envelopes exclusively over the `MessagePort` each
+receives — Telegram Bot API JSON for `telegram/bot.js`, WhatsApp Cloud API
+JSON for `whatsapp/bot.js`. Both are commented as step-by-step reference
+implementations of that document.
 
 ## License
 

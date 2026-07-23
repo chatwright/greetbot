@@ -12,6 +12,7 @@ Feature specifications for this project.
 |---------|--------|-------------|
 | [greetbot](greetbot/README.md) | Implemented | The no-framework iframe demo bot proving the bot protocol |
 | [greetbot/telegram-language-onboarding](greetbot/telegram-language-onboarding/README.md) | Implemented | /start language keyboard; choice edits the greeting in place |
+| [greetbot/whatsapp-language-onboarding](greetbot/whatsapp-language-onboarding/README.md) | Implemented | Numbered-reply menu; choice greets in a new message (no buttons, no edits) |
 
 ## Open Questions
 

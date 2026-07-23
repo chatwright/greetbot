@@ -8,7 +8,7 @@ status: Specified
 **Status:** Specified
 **Date:** 2026-07-23
 **Owner:** alex
-**Promotes To:** greetbot, greetbot/telegram-language-onboarding
+**Promotes To:** greetbot, greetbot/telegram-language-onboarding, greetbot/whatsapp-language-onboarding
 **Supersedes:** —
 **Related Ideas:** —
 
@@ -67,7 +67,7 @@ of the handshake and call/result exchange.
 | Tier | Assumption | How to validate |
 |---|---|---|
 | Must-be-true | A newcomer can implement the bot side of the protocol from this repository alone | First community iframe bot that cites GreetBot as its starting point |
-| Should-be-true | The shared-logic/adapter split survives a second platform without rework | The WhatsApp adapter lands without touching `shared/greet.js` |
+| Should-be-true | The shared-logic/adapter split survives a second platform without rework | The WhatsApp adapter lands without touching `shared/greet.js` — **validated 2026-07-23**: `whatsapp/` shipped with zero changes to `shared/greet.js` (see [greetbot/whatsapp-language-onboarding](../features/greetbot/whatsapp-language-onboarding/README.md)) |
 
 ## SpecScore Integration
 
