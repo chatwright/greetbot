@@ -2,7 +2,7 @@
 format: https://chatwright.dev/formats/chatwright-md/v1
 id: greetbot
 name: GreetBot
-version: 0.1.0
+version: 0.1.1
 authors:
   - github: chatwright
 platforms: [telegram]
@@ -14,6 +14,11 @@ bots:
     capabilities:
       - messaging.buttons.inline
       - messaging.message.edit
+implements:
+  - recipe: language-onboarding
+    platform: telegram
+    tier: official
+jobs: [onboard-users-in-their-language]
 demos:
   - bot: telegram
     title: Language onboarding
