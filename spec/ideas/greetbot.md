@@ -1,14 +1,14 @@
 ---
 format: https://specscore.md/idea-specification
-status: Approved
+status: Specified
 ---
 
 # Idea: GreetBot — the reference iframe demo bot
 
-**Status:** Approved
+**Status:** Specified
 **Date:** 2026-07-23
 **Owner:** alex
-**Promotes To:** —
+**Promotes To:** greetbot, greetbot/telegram-language-onboarding
 **Supersedes:** —
 **Related Ideas:** —
 
