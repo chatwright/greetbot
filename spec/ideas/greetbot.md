@@ -1,11 +1,11 @@
 ---
 format: https://specscore.md/idea-specification
-status: Implementing
+status: Approved
 ---
 
 # Idea: GreetBot — the reference iframe demo bot
 
-**Status:** Implementing
+**Status:** Approved
 **Date:** 2026-07-23
 **Owner:** alex
 **Promotes To:** —

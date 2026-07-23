@@ -10,7 +10,7 @@ Pre-spec one-pagers. Each Idea is a lint-clean problem-direction-MVP one-pager t
 
 | Idea | Status | Date | Owner | Promotes To |
 |------|--------|------|-------|-------------|
-| [greetbot](greetbot.md) | Implementing | 2026-07-23 | alex | — |
+| [greetbot](greetbot.md) | Approved | 2026-07-23 | alex | — |
 
 ## Open Questions
 
