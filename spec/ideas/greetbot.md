@@ -77,6 +77,9 @@ of the handshake and call/result exchange.
 
 ## Open Questions
 
-- None at this time.
+- What exactly does the template repo inherit from GreetBot, and how do the
+  two stay in sync as the protocol evolves?
+- When further platform adapters land, is one registry entry with several
+  `bots[]` still right, or should per-platform demos be separately visible?
 
 *This document follows the https://specscore.md/idea-specification*

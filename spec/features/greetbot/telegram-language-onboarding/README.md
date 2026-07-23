@@ -53,4 +53,9 @@ And the text becomes the English greeting
 
 ## Open Questions
 
-None at this time.
+- The language list is hardcoded in `shared/greet.js` — should it derive
+  from one i18n table so future platform adapters cannot drift?
+- Should the adapter answer `callback_query` with toast text (visible
+  confirmation) instead of a silent acknowledgement?
+- How do longer language lists paginate within Telegram's callback-data
+  size limits?

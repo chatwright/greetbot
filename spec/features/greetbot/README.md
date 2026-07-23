@@ -47,4 +47,9 @@ And all subsequent traffic uses that port only
 
 ## Open Questions
 
-None at this time.
+- Should the host-side handshake in `harness.html` become a tiny reusable
+  helper shared via the template repo, instead of being copy-pasted?
+- Can the harness proof run headless in CI (automated browser) so the ACs
+  are re-proven on every push, not only manually?
+- Which iframe `sandbox`/CSP attributes should this page recommend to hosts
+  once the standard fixes them (research item I-68)?
