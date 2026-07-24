@@ -71,8 +71,7 @@ AC: numbered-reply-picks-language)
 Then the bot's `editMessageText` call omits `reply_markup` entirely
 And Telegram removes the inline keyboard from the message, leaving only
 the greeting
-(Pending live proof via `harness.html` in a real browser — coordinator's
-Chrome pass.)
+(Proven live in Chrome against production — the Playground Compare view, 2026-07-24: numbered buttons rendered, click edited the prompt in place with the keyboard fully removed.)
 
 ### AC: numbered-reply-picks-language
 
@@ -82,8 +81,7 @@ When a plain text message reading "2" (or "Español") arrives
 Then the bot calls `editMessageText` on that same `message_id` — the
 identical prompt a button tap would have edited
 And the text becomes the Spanish greeting
-(Pending live proof via `harness.html` in a real browser — coordinator's
-Chrome pass.)
+(Proven live in Chrome against production — the Playground Compare view, 2026-07-24: numbered buttons rendered, click edited the prompt in place with the keyboard fully removed.)
 
 ## Open Questions
 
