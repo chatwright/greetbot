@@ -18,11 +18,12 @@ this repository.
 
 Every adapter offers the same language choice and greeting, degraded to
 whatever affordances its platform actually has. Telegram's `/start` offers
-an inline keyboard whose pick edits the greeting in place. WhatsApp has no
-buttons and no message-edit endpoint, so its adapter sends a numbered-reply
-menu on a chat's first message and the greeting always arrives as a new
-message. Any other message is greeted in the chat's current language, on
-either platform.
+an inline keyboard — numbered, since typing a digit or a language's name
+picks it too — whose pick edits the greeting in place and removes the
+keyboard. WhatsApp has no buttons and no message-edit endpoint, so its
+adapter sends the same kind of numbered-reply menu on a chat's first
+message, but the greeting always arrives as a new message. Any other
+message is greeted in the chat's current language, on either platform.
 
 ## Structure
 

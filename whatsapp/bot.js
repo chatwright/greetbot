@@ -22,9 +22,12 @@
 // conversation: it degrades the language choice to a numbered-reply menu
 // (a plain-text list the user answers with a digit or the language's own
 // name) and sends the greeting as a brand-new message rather than editing
-// one that doesn't exist to edit. That degradation logic is WhatsApp-
-// specific UI convention, not shared conversation semantics, so it lives
-// here rather than in ../shared/greet.js — the shared file still owns the
+// one that doesn't exist to edit. Rendering that menu (the numbered-list
+// text) is WhatsApp-specific UI convention, so it stays here — but parsing
+// the reply back into a pick is platform-neutral conversation semantics
+// telegram/bot.js now shares too (its inline-keyboard taps accept the same
+// typed digit/name as a fallback), so that parser lives once, in
+// ../shared/greet.js's `languageFromText` — the shared file still owns the
 // language list, the greeting texts and the per-chat language state.
 //
 // No framework, no build step: plain script, loaded after
@@ -63,7 +66,10 @@
   // Numbered-reply menu — the WhatsApp-specific degradation of Telegram's
   // inline keyboard. Built from GreetBot.LANGUAGES (already
   // platform-neutral: code/label/greeting), so the language list itself
-  // still lives once, in ../shared/greet.js.
+  // still lives once, in ../shared/greet.js. Parsing a reply back into a
+  // pick is `GreetBot.languageFromText` (shared/greet.js) — not rendering,
+  // so it doesn't live here; only the numbered-menu text is this
+  // adapter's own.
   // ---------------------------------------------------------------------
 
   // Renders "Choose your language:\n1) English\n2) Español\n3) Français".
@@ -72,28 +78,6 @@
       return (index + 1) + ') ' + language.label;
     });
     return GreetBot.CHOOSE_LANGUAGE_TEXT + ':\n' + lines.join('\n');
-  }
-
-  // Parses a reply as a language pick: a 1-based digit position in
-  // GreetBot.LANGUAGES ("1", "2", "3", ...) or the language's own label,
-  // case-insensitively ("english", "Español", ...). Returns the matched
-  // language code, or null if `text` isn't a recognised pick — the
-  // adapter then falls back to GreetBot.greet, exactly as telegram/bot.js
-  // falls back to it for any non-/start, non-language-pick message.
-  function languageFromReply(text) {
-    var trimmed = (text == null ? '' : String(text)).trim();
-    if (!trimmed) return null;
-
-    var oneBasedIndex = Number(trimmed);
-    if (Number.isInteger(oneBasedIndex) && oneBasedIndex >= 1 && oneBasedIndex <= GreetBot.LANGUAGES.length) {
-      return GreetBot.LANGUAGES[oneBasedIndex - 1].code;
-    }
-
-    var lower = trimmed.toLowerCase();
-    for (var i = 0; i < GreetBot.LANGUAGES.length; i++) {
-      if (GreetBot.LANGUAGES[i].label.toLowerCase() === lower) return GreetBot.LANGUAGES[i].code;
-    }
-    return null;
   }
 
   // ---------------------------------------------------------------------
@@ -163,7 +147,7 @@
       return;
     }
 
-    var code = languageFromReply(text);
+    var code = GreetBot.languageFromText(text);
     if (code) {
       chatState.setLang(chatId, code);
       applyIntent(chatId, { kind: 'send', text: GreetBot.greetingFor(code) });

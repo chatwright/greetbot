@@ -1,12 +1,17 @@
 // shared/greet.js — GreetBot's platform-neutral conversation logic.
 //
-// This is the one piece of GreetBot every platform adapter (telegram/ today;
-// whatsapp/, viber/, slack/, ... later) drives. It knows the greeting texts,
-// the language list, and the /start -> language-choice -> edited-greeting
-// state machine — and NOTHING about Telegram, iframes, postMessage, or the
-// Chatwright envelope protocol. An adapter's whole job is: turn its
-// platform's native updates into calls into this file, then turn this
-// file's platform-neutral "intents" into its platform's native API calls.
+// This is the one piece of GreetBot every platform adapter (telegram/,
+// whatsapp/ today; viber/, slack/, ... later) drives. It knows the greeting
+// texts, the language list, the /start -> language-choice -> edited-greeting
+// state machine, and how to parse a typed digit or language name back into
+// a pick (`languageFromText`) — and NOTHING about Telegram, iframes,
+// postMessage, or the Chatwright envelope protocol. An adapter's whole job
+// is: turn its platform's native updates into calls into this file, then
+// turn this file's platform-neutral "intents" into its platform's native
+// API calls. How a pick is *offered* (inline-keyboard buttons vs. a
+// numbered-list message) stays platform rendering, in each adapter — this
+// file only owns what counts as a valid pick and what happens once one is
+// made.
 //
 // No build step: this attaches a single `GreetBot` global so any adapter
 // page can load it with a plain <script src="../shared/greet.js"> tag. It
@@ -47,6 +52,32 @@
     var code = actionId.slice(ACTION_PREFIX.length);
     for (var i = 0; i < LANGUAGES.length; i++) {
       if (LANGUAGES[i].code === code) return code;
+    }
+    return null;
+  }
+
+  // Parses free text as a language pick: a 1-based digit position in
+  // LANGUAGES ("1", "2", "3", ...) or a language's own label,
+  // case-insensitively ("english", "Español", ...). Returns the matched
+  // language code, or null if `text` isn't a recognised pick — an adapter
+  // should then fall back to whatever it does for an unrecognised message
+  // (typically GreetBot.greet). Platform-neutral conversation semantics,
+  // not UI rendering: whatsapp/bot.js drives its numbered-reply menu with
+  // this, and telegram/bot.js drives the same typed-digit/name path
+  // alongside its inline-keyboard taps — one parser, so the two adapters
+  // can never drift on what counts as a valid pick.
+  function languageFromText(text) {
+    var trimmed = (text == null ? '' : String(text)).trim();
+    if (!trimmed) return null;
+
+    var oneBasedIndex = Number(trimmed);
+    if (Number.isInteger(oneBasedIndex) && oneBasedIndex >= 1 && oneBasedIndex <= LANGUAGES.length) {
+      return LANGUAGES[oneBasedIndex - 1].code;
+    }
+
+    var lower = trimmed.toLowerCase();
+    for (var i = 0; i < LANGUAGES.length; i++) {
+      if (LANGUAGES[i].label.toLowerCase() === lower) return LANGUAGES[i].code;
     }
     return null;
   }
@@ -113,6 +144,7 @@
     greetingFor: greetingFor,
     actionIdFor: actionIdFor,
     languageFromActionId: languageFromActionId,
+    languageFromText: languageFromText,
     createChatState: createChatState,
     start: start,
     greet: greet,

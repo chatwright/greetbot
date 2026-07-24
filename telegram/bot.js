@@ -15,6 +15,14 @@
 // would do the same translation for its own platform, sharing the same
 // ../shared/greet.js.
 //
+// Telegram supports numbered replies too, not just button taps: a plain
+// inbound message reading "1"/"2"/"3" or a language's own name picks that
+// language exactly as it does on whatsapp/bot.js's numbered-reply menu —
+// same GreetBot.languageFromText parser, same shared/greet.js language
+// list. Only the "(N)" suffix on each inline-keyboard button label (so a
+// tap and a typed digit agree on numbering) is Telegram-specific
+// rendering and lives here, not in the shared file.
+//
 // No framework, no build step: plain script, loaded after
 // ../shared/greet.js so the `GreetBot` global is already defined.
 (function () {
@@ -37,6 +45,16 @@
   // map keys.
   var chatState = GreetBot.createChatState();
 
+  // chat id -> message_id of the language-choice message this adapter most
+  // recently sent to that chat (the one carrying the inline keyboard).
+  // Needed so a *typed* digit/name pick — which arrives as an ordinary
+  // message, with no message_id of its own to edit — can still edit that
+  // same prompt in place, exactly like a button tap already can via
+  // callback_query.message.message_id. Purely Telegram transport plumbing
+  // (a message_id), so it stays local to this adapter rather than
+  // generalising ../shared/greet.js's platform-neutral chat state.
+  var promptMessageIds = new Map();
+
   // ---------------------------------------------------------------------
   // Intent -> Telegram Bot API call. This is the only place that knows how
   // a platform-neutral {kind, text, actions?} intent becomes a Telegram
@@ -44,27 +62,42 @@
   // ---------------------------------------------------------------------
 
   // One row per action, one button per row — real Telegram Bot API shape
-  // (`text` + `callback_data`), exactly as this bot would send it.
+  // (`text` + `callback_data`), exactly as this bot would send it. The
+  // "(N)" suffix on each label is Telegram-adapter rendering only: it
+  // spells out the digit that types the same pick (GreetBot.languageFromText
+  // accepts a 1-based position in GreetBot.LANGUAGES), so a tap and a typed
+  // reply agree on numbering. shared/greet.js's action labels themselves
+  // stay plain ("English") — this is purely how this adapter draws buttons.
   function inlineKeyboardFromActions(actions) {
     return {
-      inline_keyboard: actions.map(function (action) {
-        return [{ text: action.label, callback_data: action.id }];
+      inline_keyboard: actions.map(function (action, index) {
+        return [{ text: action.label + ' (' + (index + 1) + ')', callback_data: action.id }];
       }),
     };
   }
 
   // `editTarget` is only needed for "edit" intents: the chat_id/message_id
   // of the message to edit in place, taken from whatever update the intent
-  // is answering.
+  // is answering. A "send" intent carrying language-choice `actions` is the
+  // prompt message: once Telegram confirms it, its message_id is recorded
+  // in `promptMessageIds` so a later typed digit/name pick has something to
+  // edit, the same way a button tap's callback_query already carries one.
   function applyIntent(chatId, intent, editTarget) {
     if (!intent) return;
     if (intent.kind === 'send') {
       var params = { chat_id: chatId, text: intent.text };
-      if (intent.actions && intent.actions.length) {
+      var isPrompt = Boolean(intent.actions && intent.actions.length);
+      if (isPrompt) {
         params.reply_markup = inlineKeyboardFromActions(intent.actions);
       }
-      callMethod('sendMessage', params);
+      callMethod('sendMessage', params, isPrompt ? function (result) {
+        if (result && result.message_id != null) promptMessageIds.set(chatId, result.message_id);
+      } : undefined);
     } else if (intent.kind === 'edit') {
+      // No `reply_markup` here — omitting it on editMessageText is how
+      // Telegram removes a message's existing inline keyboard, which is
+      // exactly what should happen the moment a language is picked (tap or
+      // typed digit/name): the prompt becomes the greeting, buttons gone.
       callMethod('editMessageText', {
         chat_id: chatId,
         message_id: editTarget.messageId,
@@ -92,8 +125,27 @@
   function handleMessage(message) {
     var chat = message && message.chat;
     if (!chat) return;
-    var intent = message.text === '/start' ? GreetBot.start() : GreetBot.greet(chat.id, chatState);
-    applyIntent(chat.id, intent);
+
+    if (message.text === '/start') {
+      applyIntent(chat.id, GreetBot.start());
+      return;
+    }
+
+    // Typed digit/name pick — the same GreetBot.languageFromText parser
+    // whatsapp/bot.js drives its numbered-reply menu with. Only acted on
+    // when this chat already has a tracked prompt message to edit (i.e.
+    // /start has already run): with nothing to edit in place, it falls
+    // through to the ordinary greet below, exactly like any other
+    // unrecognised message.
+    var code = GreetBot.languageFromText(message.text);
+    var promptMessageId = promptMessageIds.get(chat.id);
+    if (code && promptMessageId != null) {
+      var intent = GreetBot.pickLanguage(chat.id, GreetBot.actionIdFor(code), chatState);
+      applyIntent(chat.id, intent, { messageId: promptMessageId });
+      return;
+    }
+
+    applyIntent(chat.id, GreetBot.greet(chat.id, chatState));
   }
 
   function handleCallbackQuery(callbackQuery) {
@@ -111,15 +163,18 @@
   // ---------------------------------------------------------------------
 
   var nextCallId = 1;
-  var pendingCalls = new Map(); // envelope id -> {method, params}, for correlating + logging results
+  var pendingCalls = new Map(); // envelope id -> {method, params, onSuccess}, for correlating + logging results
 
-  function callMethod(method, params) {
+  // `onSuccess`, when given, is invoked with the call's `result` payload
+  // once its matching "result" envelope arrives. Today's only use is
+  // applyIntent recording a just-sent prompt message's message_id.
+  function callMethod(method, params, onSuccess) {
     if (!port) {
       console.error('[greetbot/telegram] cannot call "' + method + '" before the handshake completes');
       return;
     }
     var id = 'call-' + nextCallId++;
-    pendingCalls.set(id, { method: method, params: params });
+    pendingCalls.set(id, { method: method, params: params, onSuccess: onSuccess });
     sendEnvelope({ id: id, kind: 'call', platform: PLATFORM, payload: { method: method, params: params } });
   }
 
@@ -133,7 +188,9 @@
     if (!payload || payload.ok !== true) {
       console.error('[greetbot/telegram] call failed', pending, payload);
       logLine('call failed: ' + (pending ? pending.method : '(unknown)') + ' — ' + JSON.stringify(payload));
+      return;
     }
+    if (pending && pending.onSuccess) pending.onSuccess(payload.result);
   }
 
   // ---------------------------------------------------------------------

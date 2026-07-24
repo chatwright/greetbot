@@ -2,7 +2,7 @@
 format: https://chatwright.dev/formats/chatwright-md/v1
 id: greetbot
 name: GreetBot
-version: 0.2.0
+version: 0.2.1
 authors:
   - github: chatwright
 platforms: [telegram, whatsapp]
@@ -49,10 +49,14 @@ Each platform adapter offers the same language choice and greeting, using
 whatever affordances that platform actually has:
 
 - **Telegram** (`telegram/`): `/start` offers the choice as an inline
-  keyboard. Picking a language edits that same message in place —
-  translating it to the chosen language — rather than sending a new one,
-  and is remembered for the rest of the chat. Any other message is greeted
-  in the chat's current language.
+  keyboard, each button labelled with its position ("English (1)",
+  "Español (2)", "Français (3)") since typing works too — a reply of "1"
+  or a language's own name picks it, exactly like WhatsApp's
+  numbered-reply menu. Either way, picking a language edits that same
+  message in place — translating it to the chosen language and removing
+  the keyboard — rather than sending a new one, and is remembered for the
+  rest of the chat. Any other message is greeted in the chat's current
+  language.
 - **WhatsApp** (`whatsapp/`): the WhatsApp Cloud API has no inline
   keyboards and no message-edit endpoint, so the choice degrades to a
   numbered-reply menu — "Choose your language:\n1) English\n2) Español\n3)

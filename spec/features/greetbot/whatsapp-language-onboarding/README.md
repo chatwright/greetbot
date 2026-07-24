@@ -41,11 +41,21 @@ falls back to `GreetBot.greet` — the chat's current language, English by
 default — exactly as telegram/bot.js falls back for any non-`/start`,
 non-pick message.
 
-`shared/greet.js` required no changes: `LANGUAGES`, `CHOOSE_LANGUAGE_TEXT`,
-`greetingFor` and `createChatState` were already platform-neutral and
-already exported. The numbered-menu rendering and digit/label parsing are
-WhatsApp-specific UI convention, so they live in `whatsapp/bot.js`, not in
-the shared file.
+`shared/greet.js` required no changes at first: `LANGUAGES`,
+`CHOOSE_LANGUAGE_TEXT`, `greetingFor` and `createChatState` were already
+platform-neutral and already exported, and the numbered-menu rendering and
+digit/label parsing both started out living in `whatsapp/bot.js` as
+WhatsApp-specific UI convention. That held only until a second
+numbered-reply consumer arrived: when
+[telegram-language-onboarding](../telegram-language-onboarding/README.md)
+added typed-digit/name support alongside its inline-keyboard taps, the
+digit/label *parsing* half turned out to be platform-neutral conversation
+semantics after all — both adapters need to agree on what counts as a
+valid pick — so it moved into `shared/greet.js` as `languageFromText`,
+consumed by both `whatsapp/bot.js` and `telegram/bot.js` unchanged. The
+numbered-*menu* text itself is still WhatsApp-specific rendering and still
+lives here — Telegram never renders it, since its keyboard buttons already
+show the numbering.
 
 ## Dependencies
 
@@ -76,9 +86,11 @@ distinct** call, never an edit of the first — with body "Howdy stranger"
 - Should an unrecognised second reply (neither a valid digit nor a
   recognised label) re-send the numbered menu instead of silently falling
   back to the English greeting?
-- Digit-and-label parsing lives in `whatsapp/bot.js`; if a third
-  numbered-reply platform lands, should that parsing move into
-  `shared/greet.js` instead of being duplicated?
+- **Resolved 2026-07-23:** digit-and-label parsing moved from
+  `whatsapp/bot.js` into `shared/greet.js` (`languageFromText`) the moment
+  a second numbered-reply consumer landed — see
+  [telegram-language-onboarding](../telegram-language-onboarding/README.md)
+  and this document's Behavior section above.
 - How should a WhatsApp 24-hour customer-service-window closure (Cloud API
   error code 131047, requiring a template message) surface here, given
   this adapter only ever sends free-form text?

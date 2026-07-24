@@ -79,6 +79,7 @@
   </select>
   <button id="send-first" disabled>send first message</button>
   <button id="send-pick" disabled>pick English</button>
+  <button id="send-pick-typed" disabled>type "1"</button>
   <span id="status">waiting for handshake…</span>
 </div>
 
@@ -98,6 +99,7 @@
   var platformSelect = document.getElementById('platform');
   var sendFirstBtn = document.getElementById('send-first');
   var sendPickBtn = document.getElementById('send-pick');
+  var sendPickTypedBtn = document.getElementById('send-pick-typed'); // Telegram only — see loadAdapter()
   var statusEl = document.getElementById('status');
   var hostLog = document.getElementById('hostLog');
 
@@ -145,6 +147,12 @@
     sendFirstBtn.disabled = true;
     sendPickBtn.disabled = true;
     sendPickBtn.textContent = platform === 'telegram' ? 'click first button' : 'reply "1"';
+    // WhatsApp's only pick path is already typed text (sendPickBtn above);
+    // this second control only exists to exercise Telegram's *additional*
+    // typed-digit/name path (shared/greet.js's GreetBot.languageFromText)
+    // alongside its button tap, so it's hidden for WhatsApp.
+    sendPickTypedBtn.disabled = true;
+    sendPickTypedBtn.style.display = platform === 'telegram' ? '' : 'none';
     statusEl.textContent = 'waiting for handshake…';
     iframe.src = platform + '/';
     logLine('loading ' + platform + '/ …');
@@ -274,8 +282,11 @@
   }
 
   // ---------------------------------------------------------------------
-  // Buttons — synthesize real platform update JSON, exactly what a webhook
-  // would deliver, and send it as an "update" envelope.
+  // Controls — synthesize real platform update JSON, exactly what a
+  // webhook would deliver, and send it as an "update" envelope. Telegram
+  // gets two ways to pick a language now (tap the button, or type its
+  // digit) since the bot accepts both; WhatsApp only ever had the typed
+  // path.
   // ---------------------------------------------------------------------
 
   function sendUpdate(update) {
@@ -349,6 +360,7 @@
     var update = selectedPlatform === 'whatsapp' ? whatsAppMessageUpdate('/start') : telegramMessageUpdate('/start');
     sendUpdate(update);
     sendPickBtn.disabled = false;
+    if (selectedPlatform === 'telegram') sendPickTypedBtn.disabled = false;
   });
 
   sendPickBtn.addEventListener('click', function () {
@@ -366,6 +378,15 @@
     // First button in the language keyboard is English — see
     // shared/greet.js LANGUAGES order.
     sendUpdate(telegramCallbackUpdate('lang:en'));
+  });
+
+  sendPickTypedBtn.addEventListener('click', function () {
+    if (selectedPlatform !== 'telegram') return; // WhatsApp's pick is already the typed path — see sendPickBtn above
+    // Ordinary text message reading "1" — the digit for English, the same
+    // one the button (above) would send as callback_data "lang:en". Proves
+    // telegram/bot.js's typed-digit path edits the same prompt message in
+    // place via GreetBot.languageFromText, exactly like the button tap does.
+    sendUpdate(telegramMessageUpdate('1'));
   });
 
   // ---------------------------------------------------------------------
